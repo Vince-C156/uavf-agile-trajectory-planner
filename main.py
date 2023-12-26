@@ -1,4 +1,5 @@
 from uavf_types import waypoints, coordinates, waypoints_global
+from trajectory import CPC
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
 from pydrake.systems.analysis import Simulator
@@ -56,6 +57,10 @@ def main():
 
     # Instantiate a system diagram builder
     quad_plant = QuadrotorPlant()
+
+    #Trajectory Optimization
+    cpc = CPC(quad_plant, x, 0.1, 10, -10, mission_waypoints)
+    
     builder = DiagramBuilder()
     # Add the QuadrotorPlant system to the diagram
     quad_dynamics = builder.AddNamedSystem("Quad-Dynamics-Non-Linear", quad_plant)
