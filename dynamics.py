@@ -7,12 +7,12 @@ from ahrs import Quaternion
 class QuadrotorPlant(LeafSystem):
 
     g = np.array([0, 0, -9.81])  # Gravity vector
-    m = 1.0  # Mass of the quadrotor [kg]
-    J = np.diag([0.01, 0.01, 0.02])  # Inertia matrix
-    l = 0.25  # Length of the quadrotor arm [m]
-    T_max = 10  # Maximum thrust, placeholder
-    v_max = 10  # Maximum velocity, placeholder for drag equation
-    c_tau = 0.1  # Constant related to the torque produced by the aerodynamic drag on the rotors 10% of the thrust
+    m = 5.70528483  # Mass of the quadrotor [kg] Estimate from sheets [12.578lb --> 5.70528483kg]
+    J = np.diag([0.01, 0.01, 0.02])  # Inertia matrix [ESTIMATE]
+    l = 0.38  # Length of the quadrotor arm [m] measurement from cad model
+    T_max = 270  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
+    v_max = 26.8224  # Maximum velocity (60mph --> 26.8224 m/s)
+    c_tau = 0.0219  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
 
     def __init__(self):
         LeafSystem.__init__(self)
