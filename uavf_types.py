@@ -42,6 +42,7 @@ class waypoints:
         (38.31729702009844, -76.55617670782419)
     ]
 
+    ax = plt.figure().add_subplot(projection='3d')
 
     def __init__(self, global_origin : coordinates, waypoints : waypoints_global):
         self.global_origin = global_origin
@@ -83,7 +84,6 @@ class waypoints:
         print("Local waypoints: {}".format(self.waypoints_local))
 
     def plot_waypoints(self):
-        ax = plt.figure().add_subplot(projection='3d')
         
         # Convert flight boundaries to NED coordinates at ground level and at specified altitude
         boundary_ground_ned = jnp.array([self.convert_to_ned(lat, lon, 400) for lat, lon in self.flight_boundaries])
@@ -91,18 +91,18 @@ class waypoints:
 
         # Draw vertical lines (walls) for each boundary point
         for p1, p2 in zip(boundary_ground_ned, boundary_altitude_ned):
-            ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color='lightblue')
+            self.ax.plot([p1[0], p2[0]], [p1[1], p2[1]], [p1[2], p2[2]], color='lightblue')
 
         # Plot the boundary lines on top of the walls for clarity
-        ax.plot(boundary_altitude_ned[:, 0], boundary_altitude_ned[:, 1], boundary_altitude_ned[:, 2], 'b-', label='Flight Boundaries')
+        self.ax.plot(boundary_altitude_ned[:, 0], boundary_altitude_ned[:, 1], boundary_altitude_ned[:, 2], 'b-', label='Flight Boundaries')
         
         # Plot all waypoints in gray
-        ax.scatter(self.waypoints_local[:, 0], self.waypoints_local[:, 1], self.waypoints_local[:, 2], color='gray', label='Waypoints')
+        self.ax.scatter(self.waypoints_local[:, 0], self.waypoints_local[:, 1], self.waypoints_local[:, 2], color='gray', label='Waypoints')
 
         # Plot straight dotted lines between waypoints with increased opacity
 
         for i in range(len(self.waypoints_local) - 1):
-            ax.plot(
+            self.ax.plot(
                 [self.waypoints_local[i, 0], self.waypoints_local[i+1, 0]],
                 [self.waypoints_local[i, 1], self.waypoints_local[i+1, 1]],
                 [self.waypoints_local[i, 2], self.waypoints_local[i+1, 2]],
@@ -112,14 +112,14 @@ class waypoints:
             )
             
         # Plot the first waypoint in orange
-        ax.scatter(self.waypoints_local[0, 0], self.waypoints_local[0, 1], self.waypoints_local[0, 2], color='orange', label='First Waypoint')
+        self.ax.scatter(self.waypoints_local[0, 0], self.waypoints_local[0, 1], self.waypoints_local[0, 2], color='orange', label='First Waypoint')
 
         # Plot the last waypoint in red
-        ax.scatter(self.waypoints_local[-1, 0], self.waypoints_local[-1, 1], self.waypoints_local[-1, 2], color='red', label='Last Waypoint')
+        self.ax.scatter(self.waypoints_local[-1, 0], self.waypoints_local[-1, 1], self.waypoints_local[-1, 2], color='red', label='Last Waypoint')
 
         # Plot the origin in green
         origin_ned = self.convert_to_ned(self.global_origin[0], self.global_origin[1], self.global_origin[2])
-        ax.scatter(origin_ned[0], origin_ned[1], origin_ned[2], color='green', label='Origin')
+        self.ax.scatter(origin_ned[0], origin_ned[1], origin_ned[2], color='green', label='Origin')
 
 
         # Define the corners of the rectangular plane, assuming the flight boundaries provide the area.
@@ -135,16 +135,16 @@ class waypoints:
         plane_down = jnp.full(plane_north.shape, -22.86)  # Set the constant altitude for the plane
 
         # Plot the opaque red plane at the specified altitude
-        ax.plot_surface(plane_north, plane_east, plane_down, color='red', alpha=0.5, label='Min Alt')  # Set the opacity with the alpha parameter
+        self.ax.plot_surface(plane_north, plane_east, plane_down, color='red', alpha=0.5, label='Min Alt')  # Set the opacity with the alpha parameter
         
         # Set the limits and labels
-        ax.set_zlim(-100, 0)
-        ax.invert_zaxis()
-        ax.set_xlabel('North X (m)')
-        ax.set_ylabel('East Y (m)')
-        ax.set_zlabel('Down Z (m)')
+        self.ax.set_zlim(-100, 0)
+        self.ax.invert_zaxis()
+        self.ax.set_xlabel('North X (m)')
+        self.ax.set_ylabel('East Y (m)')
+        self.ax.set_zlabel('Down Z (m)')
 
         # Include a legend
-        ax.legend()
+        self.ax.legend()
         
         plt.show()
