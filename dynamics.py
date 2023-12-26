@@ -18,10 +18,10 @@ class QuadrotorPlant(LeafSystem):
         LeafSystem.__init__(self)
         
         # Define the state vector: [p, q, v, ω]
-        self.DeclareContinuousState(13)  # 3 for p, 4 for q, 3 for v, 3 for ω
+        self.state = self.DeclareContinuousState(13)  # 3 for p, 4 for q, 3 for v, 3 for ω
         
         # Define the input port for thrust and torques
-        self.DeclareVectorInputPort("u", BasicVector(4))
+        self._u_port = self.DeclareVectorInputPort("u", BasicVector(4))
         
         # Define an output port if needed, for example, the full state
         self.DeclareVectorOutputPort("state", BasicVector(13), self.CopyStateOut)
@@ -32,7 +32,7 @@ class QuadrotorPlant(LeafSystem):
         q = context.get_continuous_state_vector().CopyToVector()[3:7]
         v = context.get_continuous_state_vector().CopyToVector()[7:10]
         w = context.get_continuous_state_vector().CopyToVector()[10:]
-        u = self.EvalVectorInput(context, 0).CopyToVector()
+        u = self._u_port.Eval(context)
         
         # Calculate derivatives of p, q, v, and ω using the provided equations
         # Dynamics from equations in UAV-Forge-Agile-Control paper
@@ -41,6 +41,13 @@ class QuadrotorPlant(LeafSystem):
         
         # Write the calculated derivatives back to the derivatives vector
         derivatives.get_mutable_vector().SetFromVector(np.concatenate([dp, dq, dv, dw]))
+
+        next_p = p + dp
+        next_q = q + dq
+        next_v = v + dv
+        next_w = w + dw
+
+        #context.get_continuous_state_vector().SetFromVector(np.concatenate([next_p, next_q, next_v, next_w]))
         
 
     def calculate_dynamics(self, p, q, v, w, u):
@@ -58,14 +65,14 @@ class QuadrotorPlant(LeafSystem):
         dv = self.g + 1/self.m * np.dot(R, np.array([0, 0, u[0]])) - Cd_term * v
         
         # Equation 14: Quaternion dynamics
-        q_dot = 0.5 * (quat_obj.mult_L(np.array([0, w[0], w[1], w[2]])))  # This needs proper quaternion multiplication
+        q_dot = 0.5 * (quat_obj.mult_L() @ np.array([0, w[0], w[1], w[2]]))  # This needs proper quaternion multiplication
         
         # Equation 15: Rotational dynamics
         t_hat = self.calculate_torque(u)  #t_hat is the torque vector defined in the paper
         dw = np.dot(np.linalg.inv(self.J), t_hat - np.cross(w, np.dot(self.J, w)))
         
         # Return the derivatives of the state
-        return np.concatenate([dp, q_dot, dv, dw])
+        return dp, q_dot, dv, dw
 
     def calculate_torque(self, u):
         """

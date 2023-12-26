@@ -2,11 +2,15 @@ from uavf_types import waypoints, coordinates, waypoints_global
 from trajectory import CPC
 import jax.numpy as jnp
 import matplotlib.pyplot as plt
-from pydrake.systems.analysis import Simulator
-from pydrake.systems.framework import DiagramBuilder
+from pydrake.systems.primitives import LogVectorOutput
+from pydrake.systems.analysis import Simulator 
+from pydrake.systems.framework import DiagramBuilder 
 from dynamics import QuadrotorPlant
 from pydrake.systems.drawing import plot_system_graphviz
+from pydrake.examples import StabilizingLQRController
+from pydrake.examples import QuadrotorPlant as LinearQuadrotorPlant
 import pydot
+
 
 def main():
 
@@ -55,23 +59,48 @@ def main():
     mission_waypoints.verbose()
     mission_waypoints.plot_waypoints()
 
-    # Instantiate a system diagram builder
-    quad_plant = QuadrotorPlant()
 
-    #Trajectory Optimization
-    cpc = CPC(quad_plant, x, 0.1, 10, -10, mission_waypoints)
+
     
     builder = DiagramBuilder()
-    # Add the QuadrotorPlant system to the diagram
-    quad_dynamics = builder.AddNamedSystem("Quad-Dynamics-Non-Linear", quad_plant)
+
+    #Quadrotor Dynamics
+    quad_dynamics = builder.AddNamedSystem("Quad-Dynamics-Non-Linear", QuadrotorPlant())
+    quad_context = quad_dynamics.CreateDefaultContext()
+    quad_dynamics.get_input_port(0).FixValue(quad_context, [10, 10, 10, 10])
+
+    #Log the output of the quadrotor dynamics
+    logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
+    #Trajectory Optimization
+    cpc = CPC(quad_dynamics, x, 0.1, 10, -10, mission_waypoints)
+
+
+    plant = builder.AddSystem(LinearQuadrotorPlant())
+
+    controller = builder.AddSystem(StabilizingLQRController(plant, [0, 0, 1]))
+    builder.Connect(controller.get_output_port(0), plant.get_input_port(0))
+    builder.Connect(controller.get_output_port(0), quad_dynamics.get_input_port(0))
+    builder.Connect(plant.get_output_port(0), controller.get_input_port(0))
+
 
     # Build the system
-    system = builder.Build()
-
-
-    plot_system_graphviz(system)
+    diagram = builder.Build()
+    context = diagram.CreateDefaultContext()
+    quad_context.SetContinuousState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
+    plot_system_graphviz(diagram)
     plt.savefig('quadrotor_system_diagram.png')
 
-    quad_plant.print_params()
+    simulator = Simulator(diagram, context)
+    simulator.AdvanceTo(1)
+
+    # Plot the results.
+    log = logger.FindLog(simulator.get_context())
+    print(f'{log.data().transpose()}')
+    #plt.figure()
+    #plt.stem(log.sample_times(), log.data().transpose())
+    #plt.xlabel('n')
+    #plt.ylabel('y[n]')
+
+    #quad_plant.print_params()
 if __name__ == "__main__":
     main()
