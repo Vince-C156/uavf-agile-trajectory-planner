@@ -1,5 +1,11 @@
 from uavf_types import waypoints, coordinates, waypoints_global
 import jax.numpy as jnp
+import matplotlib.pyplot as plt
+from pydrake.systems.analysis import Simulator
+from pydrake.systems.framework import DiagramBuilder
+from dynamics import QuadrotorPlant
+from pydrake.systems.drawing import plot_system_graphviz
+import pydot
 
 def main():
 
@@ -48,6 +54,19 @@ def main():
     mission_waypoints.verbose()
     mission_waypoints.plot_waypoints()
 
+    # Instantiate a system diagram builder
+    quad_plant = QuadrotorPlant()
+    builder = DiagramBuilder()
+    # Add the QuadrotorPlant system to the diagram
+    quad_dynamics = builder.AddNamedSystem("Quad-Dynamics-Non-Linear", quad_plant)
 
+    # Build the system
+    system = builder.Build()
+
+
+    plot_system_graphviz(system)
+    plt.savefig('quadrotor_system_diagram.png')
+
+    quad_plant.print_params()
 if __name__ == "__main__":
     main()

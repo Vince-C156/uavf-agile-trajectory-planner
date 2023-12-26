@@ -1,0 +1,9 @@
+ahrs
+numpy
+matplotlib
+drake
+jax
+scipy
+pydot
+svgwrite
+IPython
