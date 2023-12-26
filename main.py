@@ -6,6 +6,7 @@ from pydrake.systems.primitives import LogVectorOutput
 from pydrake.systems.analysis import Simulator 
 from pydrake.systems.framework import DiagramBuilder 
 from dynamics import QuadrotorPlant
+from dynamics import quad_dynamics as QuadrotorDynamics
 from pydrake.systems.drawing import plot_system_graphviz
 from pydrake.examples import StabilizingLQRController
 from pydrake.examples import QuadrotorPlant as LinearQuadrotorPlant
@@ -72,7 +73,8 @@ def main():
     #Log the output of the quadrotor dynamics
     logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
     #Trajectory Optimization
-    cpc = CPC(quad_dynamics, x, 0.1, 10, -10, mission_waypoints)
+    cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=10, u_min=0.01, waypoints=mission_waypoints)
+    cpc.solve(N=100) #Solve the trajectory optimization problem with N nodes
 
 
     plant = builder.AddSystem(LinearQuadrotorPlant())
