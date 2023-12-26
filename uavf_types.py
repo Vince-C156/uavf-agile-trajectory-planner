@@ -97,10 +97,10 @@ class waypoints:
         ax.plot(boundary_altitude_ned[:, 0], boundary_altitude_ned[:, 1], boundary_altitude_ned[:, 2], 'b-', label='Flight Boundaries')
         
         # Plot all waypoints in gray
-        #ax.scatter(self.waypoints_local[:, 0], self.waypoints_local[:, 1], self.waypoints_local[:, 2], color='gray', label='Waypoints')
+        ax.scatter(self.waypoints_local[:, 0], self.waypoints_local[:, 1], self.waypoints_local[:, 2], color='gray', label='Waypoints')
 
         # Plot straight dotted lines between waypoints with increased opacity
-        '''
+
         for i in range(len(self.waypoints_local) - 1):
             ax.plot(
                 [self.waypoints_local[i, 0], self.waypoints_local[i+1, 0]],
@@ -116,7 +116,7 @@ class waypoints:
 
         # Plot the last waypoint in red
         ax.scatter(self.waypoints_local[-1, 0], self.waypoints_local[-1, 1], self.waypoints_local[-1, 2], color='red', label='Last Waypoint')
-        '''
+
         # Plot the origin in green
         origin_ned = self.convert_to_ned(self.global_origin[0], self.global_origin[1], self.global_origin[2])
         ax.scatter(origin_ned[0], origin_ned[1], origin_ned[2], color='green', label='Origin')
