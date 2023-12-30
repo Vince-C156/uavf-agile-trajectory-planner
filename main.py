@@ -48,8 +48,9 @@ def main():
     #Log the output of the quadrotor dynamics
     logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
     #Trajectory Optimization
-    cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=25, waypoints=mission_waypoints)
-    cpc.solve(NPW=500)
+    thrust_per_motor_competition = 9.07185 #N
+    cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=thrust_per_motor_competition, waypoints=mission_waypoints)
+    cpc.solve(NPW=200)
 
     input()
 

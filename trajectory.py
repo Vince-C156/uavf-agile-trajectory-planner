@@ -191,7 +191,7 @@ class CPC:
         filename = "solver_verbose/debug.txt"
         solver_options = SolverOptions()
         solver_options.SetOption(CommonSolverOption.kPrintFileName, filename)
-        solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 9000)
+        solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 2000)
 
         start_time = time.time()
         result = self.solver.Solve(self.prog, solver_options=solver_options)
