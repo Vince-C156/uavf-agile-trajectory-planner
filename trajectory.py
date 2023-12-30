@@ -7,6 +7,8 @@ from scipy.integrate import RK45, solve_ivp
 from pydrake.systems.analysis import Simulator
 from pydrake.systems.framework import DiagramBuilder
 from pydrake.systems.primitives import Integrator
+import time
+from datetime import datetime
 #CPC Trajectory Optimization
 
 class CPC:
@@ -136,6 +138,10 @@ class CPC:
     def solve(self, NPW=30):
         self.set_up_variables(NPW)
 
+        now = datetime.now()
+        current_time = now.strftime("%H:%M:%S")
+        print("Current Time =", current_time)
+
         result = self.solver.Solve(self.prog)
         print("Success? ", result.is_success())
         print(result.get_solution_result())
@@ -144,6 +150,10 @@ class CPC:
         print("Solver is ", result.get_solver_id().name())
         print("Ipopt solver status: ", result.get_solver_details().status,
             ", meaning ", result.get_solver_details().ConvertStatusToString())
+        
+        end_time = datetime.now()
+
+        print(f"Time to solve: {end_time - now}")
         
 
     def print_params(self):
@@ -158,3 +168,4 @@ class CPC:
 
     def print_prog(self):
         print(self.prog)
+
