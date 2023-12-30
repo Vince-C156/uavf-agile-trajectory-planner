@@ -23,6 +23,9 @@ def main():
     wps = waypoints_global([
     coordinates([38.31455389063634, -76.54800508052972, 290.9925880461919]),
     coordinates([38.31513573999766, -76.5536181046485, 285.7410881932995]),
+    coordinates([38.31571758935897, -76.5536181046485, 337.46067670527157]),
+    coordinates([38.317489992507284, -76.54643680891131, 256.4968851671641]),
+    coordinates([38.31644025977089, -76.5560879668336, 274.98608795923917]),
     ])
     # Initial state
     x = np.array([0.01, 0.01, -0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, -0.01, 0.01, 0.01, 0.01])
@@ -46,7 +49,7 @@ def main():
     logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
     #Trajectory Optimization
     cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=25, waypoints=mission_waypoints)
-    cpc.solve(NPW=200)
+    cpc.solve(NPW=500)
 
     input()
 

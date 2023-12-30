@@ -7,3 +7,8 @@ scipy
 pydot
 svgwrite
 IPython
+jaxlib
+sympy
+pillow
+PyQt6
+PySide6

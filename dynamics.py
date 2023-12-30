@@ -129,6 +129,7 @@ class quad_dynamics:
     T_max = 16  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
     v_max = 42.8224  # Maximum velocity (60mph --> 26.8224 m/s)
     c_tau = 0.01  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
+    
     def calculate_dynamics(self, t, state, u):
 
         # Extract the state and inputs from the context

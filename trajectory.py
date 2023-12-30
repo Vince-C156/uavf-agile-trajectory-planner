@@ -59,7 +59,10 @@ class CPC:
         #Set initial guess for total time
         self.distance_total = self.distance_waypoints() #returns total distance between waypoints and take off point
         self.final_time_guess = self.distance_total / self.v_max #guess final time as distance / max velocity
-        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess])
+        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess * 4.0])
+
+        #Lower bound on final time
+        self.prog.AddConstraint(self.t_f[0] >= self.final_time_guess)
 
         dt = N / self.t_f[0] #Time step = number of nodes / total time
 
@@ -130,7 +133,7 @@ class CPC:
                 )
 
                 mu_next_constraint = self.prog.AddLinearConstraint(
-                    mu_prog[j + 1] - mu_prog[j] >= 0
+                    mu_prog[j] - mu_prog[j+1] >= 0
                 )
 
                 complementary_progress_constraint = self.prog.AddConstraint(

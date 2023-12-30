@@ -1,10 +1,10 @@
-Total number of variables............................:     9180
-                     variables with only lower bounds:        0
-                variables with lower and upper bounds:     5588
+Total number of variables............................:    79974
+                     variables with only lower bounds:        1
+                variables with lower and upper bounds:    49985
                      variables with only upper bounds:        0
-Total number of equality constraints.................:     6783
-Total number of inequality constraints...............:     1596
+Total number of equality constraints.................:    57477
+Total number of inequality constraints...............:    24990
         inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:     1596
+        inequality constraints with only upper bounds:    24990
 
