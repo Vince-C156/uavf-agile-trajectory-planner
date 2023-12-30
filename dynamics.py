@@ -2,7 +2,7 @@ from pydrake.all import LeafSystem, BasicVector, PortDataType, Simulator
 import numpy as np
 import ahrs
 from ahrs import Quaternion
-
+from rotation_utils import quaternion_to_dcm, quaternion_multiply
 
 class QuadrotorPlant(LeafSystem):
 
@@ -128,8 +128,9 @@ class quad_dynamics:
         v = state[7:10]
         w = state[10:]
         # Convert the quaternion to a rotation matrix [Direct Cosine Matrix]
-        quat_obj = Quaternion(q) # quaternion is [qw, qx, qy, qz]
-        R = quat_obj.to_DCM()
+        #quat_obj = Quaternion(q) # quaternion is [qw, qx, qy, qz]
+        #R = quat_obj.to_DCM()
+        R = quaternion_to_dcm(q)
         
         # Calculate the drag term
         Cd_term = np.sqrt(4 * (self.T_max/self.m)**2 - ( (self.g[2]**2) / self.v_max))
@@ -141,7 +142,7 @@ class quad_dynamics:
         dv = self.g + 1/self.m * np.dot(R, np.array([0, 0, u[0]])) - Cd_term * v
         
         # Equation 14: Quaternion dynamics
-        q_dot = 0.5 * (quat_obj.mult_L() @ np.array([0, w[0], w[1], w[2]]))  # This needs proper quaternion multiplication
+        q_dot = 0.5 * quaternion_multiply(q, np.array([0, w[0], w[1], w[2]]))
         
         # Equation 15: Rotational dynamics
         t_hat = self.calculate_torque(u)  #t_hat is the torque vector defined in the paper

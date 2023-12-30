@@ -12,7 +12,7 @@ from jax.numpy import sin, cos, tan, pi, sign
 import matplotlib.pyplot as plt
 import matplotlib
 from ahrs import Quaternion
-
+import numpy as np
 
 matplotlib.use('qtagg')
 
@@ -21,7 +21,7 @@ matplotlib.use('qtagg')
 
 coordinates : TypeAlias = list[float, float, float]
 waypoints_global: TypeAlias = list[coordinates]
-waypoints_local: TypeAlias = list[jnp.array]
+waypoints_local: TypeAlias = list[np.array]
 
 class waypoints:
 
@@ -48,7 +48,7 @@ class waypoints:
         self.global_origin = global_origin
         self.waypoints_global = waypoints
 
-        self.waypoints_local = jnp.array([self.convert_to_ned(lat, lon, height) for lat, lon, height in self.waypoints_global])
+        self.waypoints_local = np.array([self.convert_to_ned(lat, lon, height) for lat, lon, height in self.waypoints_global])
 
     def convert_to_ned(self, lat, lon, alt):
         # Ensure the global_origin altitude is in feet MSL to match the altitude provided
@@ -58,10 +58,10 @@ class waypoints:
         R = 6369710  # Approximate radius of the Earth
 
         # Convert latitude and longitude from degrees to radians
-        lat = jnp.radians(lat)
-        lon = jnp.radians(lon)
-        origin_lat = jnp.radians(origin_lat)
-        origin_lon = jnp.radians(origin_lon)
+        lat = np.radians(lat)
+        lon = np.radians(lon)
+        origin_lat = np.radians(origin_lat)
+        origin_lon = np.radians(origin_lon)
 
         # Calculate the NED coordinates
         d_lat = lat - origin_lat
@@ -69,14 +69,14 @@ class waypoints:
 
         # Calculate the North and East components
         ned_north = R * d_lat
-        ned_east = R * jnp.cos(origin_lat) * d_lon
+        ned_east = R * np.cos(origin_lat) * d_lon
 
         # Calculate the Down component (positive down)
         # Altitudes are converted from feet MSL to meters before the subtraction
         # to get the relative altitude in meters for the NED Down component
         ned_down = 1.0 * ((origin_alt * 0.3048) - (alt * 0.3048))
 
-        return jnp.array([ned_north, ned_east, ned_down])
+        return np.array([ned_north, ned_east, ned_down])
     
     def verbose(self):
         print("Global origin: {}".format(self.global_origin))
@@ -86,8 +86,8 @@ class waypoints:
     def plot_waypoints(self):
         
         # Convert flight boundaries to NED coordinates at ground level and at specified altitude
-        boundary_ground_ned = jnp.array([self.convert_to_ned(lat, lon, 400) for lat, lon in self.flight_boundaries])
-        boundary_altitude_ned = jnp.array([self.convert_to_ned(lat, lon, 142) for lat, lon in self.flight_boundaries])
+        boundary_ground_ned = np.array([self.convert_to_ned(lat, lon, 400) for lat, lon in self.flight_boundaries])
+        boundary_altitude_ned = np.array([self.convert_to_ned(lat, lon, 142) for lat, lon in self.flight_boundaries])
 
         # Draw vertical lines (walls) for each boundary point
         for p1, p2 in zip(boundary_ground_ned, boundary_altitude_ned):
@@ -128,11 +128,11 @@ class waypoints:
         min_east, max_east = min(self.waypoints_local[:, 1]), max(self.waypoints_local[:, 1])
 
         # Create a grid for the surface
-        plane_north, plane_east = jnp.meshgrid(
-            jnp.linspace(min_north, max_north, 2),
-            jnp.linspace(min_east, max_east, 2)
+        plane_north, plane_east = np.meshgrid(
+            np.linspace(min_north, max_north, 2),
+            np.linspace(min_east, max_east, 2)
         )
-        plane_down = jnp.full(plane_north.shape, -22.86)  # Set the constant altitude for the plane
+        plane_down = np.full(plane_north.shape, -22.86)  # Set the constant altitude for the plane
 
         # Plot the opaque red plane at the specified altitude
         self.ax.plot_surface(plane_north, plane_east, plane_down, color='red', alpha=0.5, label='Min Alt')  # Set the opacity with the alpha parameter
