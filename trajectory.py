@@ -10,7 +10,7 @@ from pydrake.systems.primitives import Integrator
 import time
 from datetime import datetime
 from pydrake.solvers import CommonSolverOption, SolverOptions, SnoptSolver
-
+from integration_utils import runge_kutta_step
 #CPC Trajectory Optimization
 
 class CPC:
@@ -61,8 +61,8 @@ class CPC:
         self.final_time_guess = self.distance_total / self.v_max #guess final time as distance / max velocity
         self.prog.SetInitialGuess(self.t_f, [self.final_time_guess * 4.0])
 
-        #Lower bound on final time
-        self.prog.AddConstraint(self.t_f[0] >= self.final_time_guess)
+        #Lower bound on final time (distance / max velocity) and upper bound on final time (240 seconds / 4 minutes allotted for mission)
+        self.prog.AddBoundingBoxConstraint(self.final_time_guess, 240, self.t_f[0])
 
         dt = N / self.t_f[0] #Time step = number of nodes / total time
 
@@ -79,6 +79,10 @@ class CPC:
         inital_condition = self.prog.AddBoundingBoxConstraint(self.x0.T, self.x0.T, self.states[0, :])
         inital_condition.evaluator().set_description("Initial Condition")
 
+        #Final state constraint
+        final_tol = 0.1
+        final_condition = self.prog.AddBoundingBoxConstraint(self.waypoints_ned[-1] - np.array([final_tol, final_tol, final_tol]), self.waypoints_ned[-1] + np.array([final_tol, final_tol, final_tol]), self.states[-1, :3])
+
         #Dynamics constraint
         for i in range(N-1):
             #Velocity constraint
@@ -94,10 +98,12 @@ class CPC:
             actuator_limits = self.prog.AddBoundingBoxConstraint(self.u_min, self.u_max, self.inputs[i, :])
             actuator_limits.evaluator().set_description(f"Actuator_Limits_{i}")
 
-            # Calculate the dynamics using your calculate_dynamics function
-            dynamics = self.dynamics.calculate_dynamics(0, self.states[i, :], self.inputs[i, :])
+            #Take state derivative function and integrate with 4th order Runge-Kutta for next state
+            next_state = runge_kutta_step(f=self.dynamics.calculate_dynamics, y0=self.states[i, :], t0=1, dt=dt, thrust=self.inputs[i, :])[1]
+
+
             dynamics_constraint = self.prog.AddConstraint(
-                eq(self.states[i + 1, :], self.states[i, :] + (dynamics * dt))
+                eq(self.states[i + 1, :], next_state)
             )
 
             dynamics_constraint.evaluator().set_description(f"Dynamics_Constraint_{i}")
