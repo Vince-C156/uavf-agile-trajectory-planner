@@ -62,13 +62,7 @@ class CPC:
         #Set initial guess for total time
         self.distance_total = self.distance_waypoints() #returns total distance between waypoints and take off point
         self.final_time_guess = self.distance_total / self.v_max #guess final time as distance / max velocity
-        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess + ((350 - self.final_time_guess) / 2) ])
-
-        #Lower bound on final time (distance / max velocity) and upper bound on final time (240 seconds / 4 minutes allotted for mission)
-        lowerbound_time = self.prog.AddConstraint(
-            self.t_f[0] >= self.final_time_guess
-        )
-        lowerbound_time.evaluator().set_description("Lowerbound_Time")
+        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess * 2.5])
 
         self.dt = N / self.t_f[0] #Time step = number of nodes / total time
 
@@ -76,7 +70,6 @@ class CPC:
         self.states = self.prog.NewContinuousVariables(N, 13, "x")
         self.inputs = self.prog.NewContinuousVariables(N - 1, 4, "u")
 
-        self.prog.SetInitialGuess(self.inputs[0, :], [self.u_max / 2, self.u_max / 2, self.u_max / 2, self.u_max / 2])
         #Inital state constraint
 
         print(f'x0: {self.x0}')
@@ -90,7 +83,7 @@ class CPC:
         thread_dynamics.start()
 
         thread_box_constraints.join()
-        thread_dynamics.join()
+
 
         self.progress_variables = []
         #For each waypoint, define variables
@@ -146,12 +139,13 @@ class CPC:
 
             self.wp_var_dict.update({f'wp_{i}' : variables_dict})
 
+        thread_dynamics.join()
         #Sequence constraints
         self.mu_sequence_constraint()
         self.lambda_sequence_constraint()
 
         #Time cost to minimize
-        time_cost = self.prog.AddCost(self.t_f[0])
+        time_cost = self.prog.AddCost(self.t_f[0]**2.0)
         time_cost.evaluator().set_description("Time_Cost")
 
 
@@ -181,6 +175,8 @@ class CPC:
             dynamics_constraint = self.prog.AddConstraint(
                 eq(self.states[i + 1, :], next_state)
             )
+
+            #dynamics_relaxed_constraint = self.prog.AddConstraint(self.states[i + 1, :] - next_state <= 0)
 
             dynamics_constraint.evaluator().set_description(f"Dynamics_Constraint_{i}")
 
@@ -270,8 +266,9 @@ class CPC:
         filename = "solver_verbose/debug.txt"
         solver_options = SolverOptions()
         solver_options.SetOption(CommonSolverOption.kPrintFileName, filename)
-        solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 400)
-        solver_options.SetOption(IpoptSolver().solver_id(), "tol", 1e-3)
+        #solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 400)
+        #solver_options.SetOption(IpoptSolver().solver_id(), "tol", 1e-3)
+        #solver_options.SetOption(IpoptSolver().solver_id(), "acceptable_tol", 1e-3)
         start_time = time.time()
         result = self.solver.Solve(self.prog, solver_options=solver_options)
 
@@ -298,8 +295,8 @@ class CPC:
         self.plot_actuation()
         infeasible_constraints = result.GetInfeasibleConstraints(self.prog)
         for c in infeasible_constraints:
-            print(f"infeasible constraint: {c}")
-            input()
+            print(f"infeasible constraint: {c.evaluator().get_description()}")
+
 
     def print_params(self):
         print("=========================================")
