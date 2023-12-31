@@ -123,7 +123,7 @@ class CPC:
             inital_prog.evaluator().set_description(f"Initial_Progress_{i}")
 
             #Final value for progress constraint
-            final_prog = self.prog.AddBoundingBoxConstraint(0, 0, lambda_prog[-1])
+            final_prog = self.prog.AddBoundingBoxConstraint(-1e-6, 1e-6, lambda_prog[-1])
             final_prog.evaluator().set_description(f"Final_Progress_{i}")
 
             #Slack variable box constraint
@@ -148,14 +148,14 @@ class CPC:
                     self.waypoints_ned[i, :],
                     slack_prog[j],
                     mu_prog[j]
-                    ) == 0
+                    ) <= 1e-6
                 )
 
                 complementary_progress_constraint.evaluator().set_description(f"Complementary_Progress_{i}_{j}")
 
                 #Progress variable evolution constraint
                 progress_constraint = self.prog.AddLinearConstraint(
-                    lambda_prog[j] + mu_prog[j] - lambda_prog[j + 1] == 0
+                    lambda_prog[j] + mu_prog[j] - lambda_prog[j + 1] <= 1e-6
                 )
 
 
@@ -165,7 +165,7 @@ class CPC:
                     lambda_prog[j] - lambda_prog[j+1] <= 0
                 )
 
-        time_cost = self.prog.AddCost(self.t_f[0]**2.0)
+        time_cost = self.prog.AddCost(self.t_f[0])
         time_cost.evaluator().set_description("Time_Cost")
 
 

@@ -19,13 +19,12 @@ def main():
     # Global origin
     global_origin = coordinates([38.31510824923089, -76.54914848803199, 142]) #lat long alt[MSL FT] altitude is calculated from rules 217MSL = 75AGL so ground level is 217-75 = 142FT MSL
 
-    # Waypoints
+    # Waypoints 38.314873971866206, -76.54778747782218     38.31585045449336, -76.55363469322234    38.316793252827786, -76.55132799356905   38.316086155226266, -76.5477016471374
     wps = waypoints_global([
-    coordinates([38.31455389063634, -76.54800508052972, 290.9925880461919]),
-    coordinates([38.31513573999766, -76.5536181046485, 285.7410881932995]),
-    coordinates([38.31571758935897, -76.5536181046485, 337.46067670527157]),
-    coordinates([38.317489992507284, -76.54643680891131, 256.4968851671641]),
-    coordinates([38.31644025977089, -76.5560879668336, 274.98608795923917]),
+    coordinates([38.314873971866206, -76.54778747782218, 220.9925880461919]),
+    coordinates([38.31585045449336, -76.55363469322234, 215.7410881932995]),
+    coordinates([38.316793252827786, -76.55132799356905, 220.9925880461919]),
+    coordinates([38.316086155226266, -76.5477016471374, 229.3553046988733]),
     ])
     # Initial state
     x = np.array([0.01, 0.01, -0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, -0.01, 0.01, 0.01, 0.01])
@@ -49,8 +48,8 @@ def main():
     logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
     #Trajectory Optimization
     thrust_per_motor_competition = 9.07185 #N
-    cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=thrust_per_motor_competition, waypoints=mission_waypoints)
-    cpc.solve(NPW=200)
+    cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=16, waypoints=mission_waypoints)
+    cpc.solve(NPW=100)
 
     input()
 
