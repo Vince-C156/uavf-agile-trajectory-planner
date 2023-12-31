@@ -27,7 +27,7 @@ def main():
     coordinates([38.316086155226266, -76.5477016471374, 229.3553046988733]),
     ])
     # Initial state
-    x = np.array([0.01, 0.01, -0.01, 0.01, 0.01, 0.01, 0.01, 0.01, 0.01, -0.01, 0.01, 0.01, 0.01])
+    x = np.array([0.01, 0.01, -0.01, 0.00, 0.00, 0.00, 0.00, 0.00, 0.00, -0.01, 0.00, 0.00, 0.00])
 
     mission_waypoints = waypoints(global_origin = global_origin, waypoints = wps)
 
