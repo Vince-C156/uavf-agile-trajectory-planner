@@ -49,7 +49,7 @@ def main():
     #Trajectory Optimization
     thrust_per_motor_competition = 9.07185 #N
     cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=16, waypoints=mission_waypoints)
-    cpc.solve(NPW=50)
+    cpc.solve(NPW=150)
 
     input()
 
