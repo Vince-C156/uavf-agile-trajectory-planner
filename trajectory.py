@@ -142,41 +142,22 @@ class CPC:
                     mu_prog[j] <= 1
                 )
 
-                mu_next_constraint = self.prog.AddLinearConstraint(
-                    mu_prog[j] - mu_prog[j+1] >= 0
-                )
-
                 complementary_progress_constraint = self.prog.AddConstraint(
                     self.complementary_constraint(
                     self.states[j, :3],
                     self.waypoints_ned[i, :],
                     slack_prog[j],
                     mu_prog[j]
-                    ) <= 1e-6
+                    ) == 0
                 )
-
                 complementary_progress_constraint.evaluator().set_description(f"Complementary_Progress_{i}_{j}")
 
-                self.prog.AddConstraint(
-                    self.complementary_constraint(
-                    self.states[j, :3],
-                    self.waypoints_ned[i, :],
-                    slack_prog[j],
-                    mu_prog[j]
-                    ) >= -1e-6
-                )
-
                 #Progress variable evolution constraint
-                upper_progress_constraint = self.prog.AddConstraint(
-                    lambda_prog[j + 1] - lambda_prog[j] + mu_prog[j] <= 1e-6
+                progress_constraint = self.prog.AddConstraint(
+                    lambda_prog[j + 1] - lambda_prog[j] + mu_prog[j] == 0
                 )
 
-                lower_progress_constraint = self.prog.AddConstraint(
-                    lambda_prog[j + 1] - lambda_prog[j] + mu_prog[j] >= -1e-6
-                )
-
-                lower_progress_constraint.evaluator().set_description(f"Lower_Progress_Constraint_{i}_{j}")
-                upper_progress_constraint.evaluator().set_description(f"Upper_Progress_Constraint_{i}_{j}")
+                progress_constraint.evaluator().set_description(f"Progress_Constraint_{i}_{j}")
 
             self.wp_var_dict.update({f'wp_{i}' : variables_dict})
 

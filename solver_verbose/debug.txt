@@ -8,3 +8,34 @@ Total number of inequality constraints...............:    10380
    inequality constraints with lower and upper bounds:        0
         inequality constraints with only upper bounds:    10380
 
+MUMPS returned INFO(1) = -9 and requires more memory, reallocating.  Attempt 1
+  Increasing icntl[13] from 1000 to 2000.
+WARNING: Problem in step computation; switching to emergency mode.
+WARNING: Problem in step computation; switching to emergency mode.
+WARNING: Problem in step computation; switching to emergency mode.
+WARNING: Problem in step computation; switching to emergency mode.
+Cannot call restoration phase at point that is almost feasible for the restoration NLP (violation 0.000000e+00).
+Abort in line search due to no other fall back.
+Step computation in the restoration phase failed.
+
+Number of Iterations....: 3
+
+                                   (scaled)                 (unscaled)
+Objective...............:   1.4304194863976201e+02    1.4304194863976201e+02
+Dual infeasibility......:   1.0000000000000000e+00    1.0000000000000000e+00
+Constraint violation....:   3.5666217445082416e+03    1.4533012516668942e+07
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   9.6958051360342978e+01    9.6958051360342978e+01
+Overall NLP error.......:   3.5666217445082416e+03    1.4533012516668942e+07
+
+
+Number of objective function evaluations             = 4
+Number of objective gradient evaluations             = 2
+Number of equality constraint evaluations            = 4
+Number of inequality constraint evaluations          = 4
+Number of equality constraint Jacobian evaluations   = 4
+Number of inequality constraint Jacobian evaluations = 4
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT                               = 361.258
+
+EXIT: Restoration Failed!
