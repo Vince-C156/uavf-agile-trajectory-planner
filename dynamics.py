@@ -112,14 +112,14 @@ class QuadrotorPlant(LeafSystem):
 
 class quad_dynamics:
 
-
-    g = np.array([0, 0, 9.81])  # Gravity vector
-    m = 5.70528483  # Mass of the quadrotor [kg] Estimate from sheets [12.578lb --> 5.70528483kg]
-    J = np.diag([0.01, 0.01, 0.02])  # Inertia matrix [ESTIMATE]
-    l = 0.38  # Length of the quadrotor arm [m] measurement from cad model
-    T_max = 270  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
-    v_max = 26.8224  # Maximum velocity (60mph --> 26.8224 m/s)
-    c_tau = 0.0219  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
+    #parameters from cpc paper
+    g = np.array([0, 0, -9.81])  # Gravity vector
+    m = 0.76  # Mass of the quadrotor [kg] Estimate from sheets [12.578lb --> 5.70528483kg]
+    J = np.diag([3, 3, 5])  # Inertia matrix [ESTIMATE]
+    l = 0.17  # Length of the quadrotor arm [m] measurement from cad model
+    T_max = 16  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
+    v_max = 42.8224  # Maximum velocity (60mph --> 26.8224 m/s)
+    c_tau = 0.01  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
 
 
     def calculate_dynamics(self, t, state, u):
@@ -176,12 +176,12 @@ class quad_dynamics:
         return np.array([tau_x, tau_y, tau_z])
     
 '''
-parameters from cpc paper
-    g = np.array([0, 0, -9.81])  # Gravity vector
-    m = 0.76  # Mass of the quadrotor [kg] Estimate from sheets [12.578lb --> 5.70528483kg]
-    J = np.diag([3, 3, 5])  # Inertia matrix [ESTIMATE]
-    l = 0.17  # Length of the quadrotor arm [m] measurement from cad model
-    T_max = 16  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
-    v_max = 42.8224  # Maximum velocity (60mph --> 26.8224 m/s)
-    c_tau = 0.01  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
+parameters from comp quad estimates
+    g = np.array([0, 0, 9.81])  # Gravity vector
+    m = 5.70528483  # Mass of the quadrotor [kg] Estimate from sheets [12.578lb --> 5.70528483kg]
+    J = np.diag([0.01, 0.01, 0.02])  # Inertia matrix [ESTIMATE]
+    l = 0.38  # Length of the quadrotor arm [m] measurement from cad model
+    T_max = 270  # Maximum thrust, 40kg --> 40kg * 9.81m/s^2 = 392.4N --> convervative estimate of 270N
+    v_max = 26.8224  # Maximum velocity (60mph --> 26.8224 m/s)
+    c_tau = 0.0219  # Constant related to the torque produced by the aerodynamic drag on the rotors 2.19% of the thrust
 '''
