@@ -1,7 +1,5 @@
-from pydrake.all import LeafSystem, BasicVector, PortDataType, Simulator
+from pydrake.all import BasicVector, PortDataType, Simulator
 import numpy as np
-import ahrs
-from ahrs import Quaternion
 from rotation_utils import quaternion_to_dcm, quaternion_multiply
 from pydrake.systems.framework import LeafSystem_
 from pydrake.systems.scalar_conversion import TemplateSystem
@@ -9,6 +7,8 @@ from pydrake.autodiffutils import AutoDiffXd
 from pydrake.symbolic import Expression
 from pydrake.systems.framework import BasicVector, LeafSystem
 from pydrake.all import Quaternion, RollPitchYaw, RotationMatrix
+from scipy.spatial.transform import Rotation as R
+
 class quad_dynamics:
 
     #parameters from cpc paper
@@ -28,10 +28,9 @@ class quad_dynamics:
         q = state[3:7]
         v = state[7:10]
         w = state[10:]
-        # Convert the quaternion to a rotation matrix [Direct Cosine Matrix]
-        #quat_obj = Quaternion(q) # quaternion is [qw, qx, qy, qz]
-        #R = quat_obj.to_DCM()
-        R = quaternion_to_dcm(q)
+
+        quat_obj = R.from_quat(q) #[qx qy qz qw]
+        R = quat_obj.as_matrix()
         
         # Calculate the drag term
         Cd_term = np.sqrt(4 * (self.T_max/self.m)**2 - ( (self.g[2]**2) / self.v_max))
@@ -77,26 +76,27 @@ class quad_dynamics:
 
 @TemplateSystem.define("CompQuad_")
 def CompQuad_(T):
+
     class Impl(LeafSystem_[T]):
         def _construct(self, converter=None):
             LeafSystem_[T].__init__(self, converter=converter)
-            super().__init__(self, converter=converter)
-            self.g = 9.81
+            self.g = np.array([0, 0, -9.81])
             self.m = 5.8 #kg
             self.L = 0.38 #m
             self.J = np.diag([3, 3, 5]) 
             self.kF = 0.01 #thrust coefficient
             self.kM = 0.01 #torque from drag coefficient
 
+            self.v_max = 22.352 #m/s
+
             # Declare input ports
             self.DeclareVectorInputPort("u", 4)
-            self.DeclareVectorInputPort("x", 13)
 
             # Declare the continuous state of the system
-            self.DeclareContinuousState(13)
+            state_index = self.DeclareContinuousState(13)
 
             # Declare output port
-            self.DeclareVectorOutputPort("xdot", 13, self.CopyStateOut)
+            self.DeclareStateOutputPort('state', state_index)
 
         def DoCalcTimeDerivatives(self, context, derivatives):
             # Extract the state and inputs
@@ -109,33 +109,40 @@ def CompQuad_(T):
             w = state[10:]  # angular velocity
 
             # Convert the quaternion to a rotation matrix
-            q = Quaternion(q)
-            R = RotationMatrix(quaternion=q)
+            quat = np.array([q[0], q[1], q[2], q[3]]) #[qx qy qz qw]
+
+            w = np.array([w[0], w[1], w[2]])
+            Rot_matrix = quaternion_to_dcm(quat)
+
             # Calculate the drag term
-            Cd_term = np.sqrt(4 * (self.kF/self.m)**2 - ( (self.g[2]**2) / self.kM))
+            Cd_term = np.sqrt(4 * (self.kF/self.m)**2.0 - ( (self.g[2]**2) / self.v_max))
             
             # Translational dynamics
-            dp = v
+            dp = np.array(v)
+            dp = dp * np.array([1, 1, -1])
             
             # Gravitational acceleration with rotation matrix and thrust
-            dv = self.g + 1/self.m * R.multiply(np.array([0, 0, np.sum(u)])) - Cd_term * v
+            dv = self.g[2] + ((1/self.m) * (Rot_matrix @ np.array([0, 0, np.sum(u)]).T) ) - (Cd_term * v)
             dv = dv * np.array([1, 1, -1])
             
             # Quaternion dynamics
-            q_dot = -0.5 * Quaternion(np.hstack([0, w])).multiply(Quaternion(q)).wxyz()
+            pure_quaternion = np.array([0, w[0], w[1], w[2]])
+
+            q_prod = quaternion_multiply(quat, pure_quaternion)
+            q_dot = q_prod * 0.5
 
             # Rotational dynamics
             tau = self.calculate_torque(u)
-            dw = np.linalg.inv(self.J) @ (tau - np.cross(w, self.J @ w))
-
-            # Combine derivatives
+            J_inv = np.linalg.inv(self.J)
+            dw = J_inv @ (tau - np.cross(w, (self.J @ w)) )
             state_dot = np.concatenate([dp, q_dot, dv, dw])
+
             derivatives.get_mutable_vector().SetFromVector(state_dot)
 
         def calculate_torque(self, u):
             T1, T2, T3, T4 = u
-            tau_x = self.L / np.sqrt(2) * (T1 + T2 - T3 - T4)
-            tau_y = self.L / np.sqrt(2) * (-T1 + T2 + T3 - T4)
+            tau_x = self.L / (np.sqrt(2) * (T1 + T2 - T3 - T4))
+            tau_y = self.L / (np.sqrt(2) * (-T1 + T2 + T3 - T4))
             tau_z = self.kM * (T1 - T2 + T3 - T4)
             return np.array([tau_x, tau_y, tau_z])
         
