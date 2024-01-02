@@ -16,9 +16,9 @@ coordinates([38.316793252827786, -76.55132799356905, 220.9925880461919]),
 coordinates([38.316086155226266, -76.5477016471374, 229.3553046988733]),
 ])
 # Initial state
-x = np.array([0.0, 0.0, -1, 1, 0.00, 0.00, 0.00, 0.00, 0.00, 0, 0.00, 0.00, 0.00])
+x = np.array([0.0, 0.0, -1, 1, 0.0, 0.0, 0.0, 0.0, 0.0, 0, 0.0, 0.0, 0.0])
 
 mission_waypoints = waypoints(global_origin = global_origin, waypoints = wps)
-plant = CompQuad_[float]()
+plant = CompQuad_[None]()
 
 myLQR = FiniteTimeLQR(plant, x, 16, mission_waypoints, 100)

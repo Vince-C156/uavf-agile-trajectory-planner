@@ -90,18 +90,20 @@ def CompQuad_(T):
             self.v_max = 22.352 #m/s
 
             # Declare input ports
-            self.DeclareVectorInputPort("u", 4)
+            self.command = self.DeclareVectorInputPort("u", 4)
 
             # Declare the continuous state of the system
-            state_index = self.DeclareContinuousState(13)
+            self.state_index = self.DeclareContinuousState(13)
 
             # Declare output port
-            self.DeclareStateOutputPort('state', state_index)
+            self.state_next = self.DeclareVectorOutputPort(name='state', size=13, calc=self.CopyStateOut)
+            #self.DeclareStateOutputPort(name='state', index=self.state_index)
 
         def DoCalcTimeDerivatives(self, context, derivatives):
             # Extract the state and inputs
             state = context.get_continuous_state_vector().CopyToVector()
-            u = self.get_input_port(0).Eval(context)
+            u = self.command.Eval(context)[:]
+            u = np.array(u)
 
             p = state[:3]  # position
             q = state[3:7]  # orientation (quaternion)
@@ -115,16 +117,17 @@ def CompQuad_(T):
             Rot_matrix = quaternion_to_dcm(quat)
 
             # Calculate the drag term
-            Cd_term = np.sqrt(4 * (self.kF/self.m)**2.0 - ( (self.g[2]**2) / self.v_max))
-            
+            Cd_term = np.sqrt(4.0 * ( (self.kF/self.m)**2.0 ) - ( (np.power(self.g, 2.0)) / self.v_max) )
+            Cd_term = Cd_term[0]
+
             # Translational dynamics
             dp = np.array(v)
-            dp = dp * np.array([1, 1, -1])
             
             # Gravitational acceleration with rotation matrix and thrust
-            dv = self.g[2] + ((1/self.m) * (Rot_matrix @ np.array([0, 0, np.sum(u)]).T) ) - (Cd_term * v)
+            T_hat = np.array([0, 0, np.sum(u)])
+            dv = self.g + (1/self.m) * (np.dot(Rot_matrix,T_hat) ) - (Cd_term * dp)
             dv = dv * np.array([1, 1, -1])
-            
+
             # Quaternion dynamics
             pure_quaternion = np.array([0, w[0], w[1], w[2]])
 
@@ -132,26 +135,31 @@ def CompQuad_(T):
             q_dot = q_prod * 0.5
 
             # Rotational dynamics
-            tau = self.calculate_torque(u)
+            tau = self.calculate_torque(u=u[:])
+
             J_inv = np.linalg.inv(self.J)
             dw = J_inv @ (tau - np.cross(w, (self.J @ w)) )
+
             state_dot = np.concatenate([dp, q_dot, dv, dw])
 
-            derivatives.get_mutable_vector().SetFromVector(state_dot)
+            derivatives.SetFromVector(state_dot[:])
 
         def calculate_torque(self, u):
             T1, T2, T3, T4 = u
-            tau_x = self.L / (np.sqrt(2) * (T1 + T2 - T3 - T4))
-            tau_y = self.L / (np.sqrt(2) * (-T1 + T2 + T3 - T4))
-            tau_z = self.kM * (T1 - T2 + T3 - T4)
+
+            tau_x = self.L / (np.sqrt(2) * (T1 + T2 - T3 - T4) + 1e-6)
+            tau_y = self.L / (np.sqrt(2) * (-T1 + T2 + T3 - T4) + 1e-6)
+            tau_z = self.kM * (T1 - T2 + T3 - T4) + 1e-6
             return np.array([tau_x, tau_y, tau_z])
         
         def _construct_copy(self, other, converter=None):
             Impl._construct(self, converter=converter)
 
         def CopyStateOut(self, context, output):
-            x = context.get_continuous_state_vector().CopyToVector()
-            output.SetFromVector(x)
+            xdot = context.get_continuous_state_vector().CopyToVector()
+            #xdot = context.get_continuous_state_vector().CopyToVector()
+            output.SetFromVector(xdot[:])
+
     return Impl
 
 

@@ -5,6 +5,7 @@ import matplotlib.pyplot as plt
 from pydrake.all import (AutoDiffXd,FirstOrderTaylorApproximation, DirectCollocation, DiagramBuilder, LeafSystem, Solve, MathematicalProgram, SnoptSolver, Linearize)
 from uavf_types import waypoints
 import threading
+from pydrake.systems.analysis import Simulator
 #Differential Flatness Based Controller
 
 #NLMPC based controller
@@ -33,28 +34,34 @@ class FiniteTimeLQR:
         linearization_points = np.concatenate([[self.x0[:3]], [wp for wp in self.waypoints_ned]])
 
         for i, point in enumerate(linearization_points):
+            print(f'Linearizing about point {point}')
             A, B = self.linearize_about_hover(point)
             self.linear_systems.update({f'{i}' : (A, B)})
 
+        print(self.linear_systems.keys())
 
     def linearize_about_hover(self, position):
-        non_positional_states = np.array([1, 0, 0, 0, 0.0, 0.0, 0, 0, 0, 0]) #[qw, q1, q2, q3, xdot, ydot, zdot, wx, wy, wz]
-        hover_about_position = np.concatenate((position, non_positional_states))
+        non_positional_states = np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) #[qw, q1, q2, q3, xdot, ydot, zdot, wx, wy, wz]
+        hover_about_position = np.concatenate([position, non_positional_states])
+        print(hover_about_position)
         g = 9.81  # Gravity in m/s^2
         m = 5.8   # Mass of the quadrotor in kg (replace with your quadrotor's mass)
         weight = m * g
         thrust_per_propeller = weight / 4
         u_eq = np.full(4, thrust_per_propeller)
 
-        self.context.SetContinuousState(hover_about_position)
-        self.context.SetTime(1.0)
+        simulator = Simulator(self.plant)
+        context = simulator.get_mutable_context()
 
-        self.plant.get_input_port().FixValue(self.context, u_eq)
+        #print(f"u_eq: {u_eq}")
+        self.plant.GetInputPort("u").FixValue(context, u_eq)
+        context.SetContinuousState(hover_about_position[:])
 
-        Affine_System = FirstOrderTaylorApproximation(self.plant, self.context)
-        print(Affine_System.A())
-        print(Affine_System.B())
-        return Affine_System.A(), Affine_System.B()
+        Affine_System = FirstOrderTaylorApproximation(self.plant, context)
+        A_matrix = Affine_System.A()
+        B_matrix = Affine_System.B()
+
+        return A_matrix, B_matrix
     
     def solve_segment(self, x0, xf):
 
