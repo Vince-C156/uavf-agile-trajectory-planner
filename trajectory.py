@@ -10,7 +10,8 @@ from pydrake.systems.primitives import Integrator
 import time
 from datetime import datetime
 from pydrake.solvers import CommonSolverOption, SolverOptions, SnoptSolver
-
+from integration_utils import runge_kutta_step
+import threading
 #CPC Trajectory Optimization
 
 class CPC:
@@ -19,7 +20,7 @@ class CPC:
         self.dynamics = dyn_plant
         self.x0 = x0
         self.u_max = u_max
-        self.u_min = 0
+        self.u_min = 1e-6
         self.v_max = 26 #26.8224 #Maximum velocity (60mph --> 26.8224 m/s)
 
         self.waypoints_object = waypoints
@@ -38,6 +39,8 @@ class CPC:
         self.final_time_solution = None
 
         self.progress_variables = None
+
+        self.wp_var_dict = {}
         self.print_params()
 
     def distance_waypoints(self):
@@ -59,19 +62,14 @@ class CPC:
         #Set initial guess for total time
         self.distance_total = self.distance_waypoints() #returns total distance between waypoints and take off point
         self.final_time_guess = self.distance_total / self.v_max #guess final time as distance / max velocity
-        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess * 4.0])
+        self.prog.SetInitialGuess(self.t_f, [self.final_time_guess * 2.5])
 
-        #Lower bound on final time
-        self.prog.AddConstraint(self.t_f[0] >= self.final_time_guess)
-
-        dt = N / self.t_f[0] #Time step = number of nodes / total time
+        self.dt = N / self.t_f[0] #Time step = number of nodes / total time
 
         #Define state variables and input variables
         self.states = self.prog.NewContinuousVariables(N, 13, "x")
         self.inputs = self.prog.NewContinuousVariables(N - 1, 4, "u")
 
-        self.prog.SetInitialGuess(self.inputs[0, :], [self.u_max, self.u_max, self.u_max, self.u_max])
-        self.prog.SetInitialGuess(self.inputs[1, :], [self.u_max, self.u_max, self.u_max, self.u_max])
         #Inital state constraint
 
         print(f'x0: {self.x0}')
@@ -79,28 +77,13 @@ class CPC:
         inital_condition = self.prog.AddBoundingBoxConstraint(self.x0.T, self.x0.T, self.states[0, :])
         inital_condition.evaluator().set_description("Initial Condition")
 
-        #Dynamics constraint
-        for i in range(N-1):
-            #Velocity constraint
-            velocities = self.states[i+1, 7:10]
-            velocity_constraint = self.prog.AddBoundingBoxConstraint(-self.v_max, self.v_max, velocities[:])
+        thread_dynamics = threading.Thread(target=self.set_dynamics_constraint, args=(N,), name="Dynamics_Constraint_Thread")
+        thread_box_constraints = threading.Thread(target=self.set_bounding_box_constraints, args=(N,), name="Box_Constraint_Thread")
+        thread_box_constraints.start()
+        thread_dynamics.start()
 
-            #Body rates constraint
-            body_rates = self.states[i+1, 10:]
-            body_rates_constraint = self.prog.AddBoundingBoxConstraint(-10, 10, body_rates[:]) #-10 to 10 rad/s constraint on rotational rates w
+        thread_box_constraints.join()
 
-            #velocity_constraint = self.prog.AddConstraint(np.linalg.norm(self.states[i, 7:10]) - self.v_max <= 0)
-            #Input box constraint
-            actuator_limits = self.prog.AddBoundingBoxConstraint(self.u_min, self.u_max, self.inputs[i, :])
-            actuator_limits.evaluator().set_description(f"Actuator_Limits_{i}")
-
-            # Calculate the dynamics using your calculate_dynamics function
-            dynamics = self.dynamics.calculate_dynamics(0, self.states[i, :], self.inputs[i, :])
-            dynamics_constraint = self.prog.AddConstraint(
-                eq(self.states[i + 1, :], self.states[i, :] + (dynamics * dt))
-            )
-
-            dynamics_constraint.evaluator().set_description(f"Dynamics_Constraint_{i}")
 
         self.progress_variables = []
         #For each waypoint, define variables
@@ -110,6 +93,9 @@ class CPC:
             slack_prog = self.prog.NewContinuousVariables(N, f"slack_{i}")
             mu_prog = self.prog.NewContinuousVariables(N, f"mu_{i}")
 
+            self.prog.AddBoundingBoxConstraint(0, 1, mu_prog[:])
+
+            variables_dict = {'lambda': lambda_prog, 'slack': slack_prog, 'mu': mu_prog}
             self.progress_variables.append(lambda_prog)
 
             #Inital value for progress constraint
@@ -126,15 +112,11 @@ class CPC:
 
             #For each waypoint at every step/node, define variables
             for j in range(N - 1):
-                mu_prog_equality = self.prog.AddLinearConstraint(mu_prog[j] >= 0)
-                #Mu variable constraints
-                mu_constraint = self.prog.AddLinearConstraint(
-                    mu_prog[j] <= 1
-                )
 
-                mu_next_constraint = self.prog.AddLinearConstraint(
-                    mu_prog[j] - mu_prog[j+1] >= 0
-                )
+                self.prog.SetInitialGuess(mu_prog[j], 0)
+
+                if j != 0:
+                    self.prog.SetInitialGuess(lambda_prog[j], 1)
 
                 complementary_progress_constraint = self.prog.AddConstraint(
                     self.complementary_constraint(
@@ -144,23 +126,116 @@ class CPC:
                     mu_prog[j]
                     ) == 0
                 )
-
                 complementary_progress_constraint.evaluator().set_description(f"Complementary_Progress_{i}_{j}")
 
                 #Progress variable evolution constraint
-                progress_constraint = self.prog.AddLinearConstraint(
-                    lambda_prog[j] + mu_prog[j] - lambda_prog[j + 1] == 0
-                )
 
+                #lambda_prog[j] - mu_prog[j] = lambda_prog[j + 1]
+                progress_constraint = self.prog.AddConstraint(
+                    eq(lambda_prog[j + 1], [lambda_prog[j] - mu_prog[j]])
+                )
 
                 progress_constraint.evaluator().set_description(f"Progress_Constraint_{i}_{j}")
 
-                self.prog.AddConstraint(
-                    lambda_prog[j] - lambda_prog[j+1] <= 0
-                )
+            self.wp_var_dict.update({f'wp_{i}' : variables_dict})
 
+        thread_dynamics.join()
+        #Sequence constraints
+        self.mu_sequence_constraint()
+        self.lambda_sequence_constraint()
+
+        #Time cost to minimize
         time_cost = self.prog.AddCost(self.t_f[0]**2.0)
         time_cost.evaluator().set_description("Time_Cost")
+
+
+    def set_bounding_box_constraints(self, N):
+        for i in range(N-1):
+            #Velocity constraint
+            velocities = self.states[i+1, 7:10]
+            velocity_constraint = self.prog.AddBoundingBoxConstraint(-self.v_max, self.v_max, velocities[:])
+
+            #Body rates constraint
+            body_rates = self.states[i+1, 10:]
+            body_rates_constraint = self.prog.AddBoundingBoxConstraint(-10, 10, body_rates[:]) #-10 to 10 rad/s constraint on rotational rates w
+
+            #velocity_constraint = self.prog.AddConstraint(np.linalg.norm(self.states[i, 7:10]) - self.v_max <= 0)
+            #Input box constraint
+            actuator_limits = self.prog.AddBoundingBoxConstraint(self.u_min, self.u_max, self.inputs[i, :])
+            actuator_limits.evaluator().set_description(f"Actuator_Limits_{i}")
+
+        print("Bounding box constraints added")
+
+    def set_dynamics_constraint(self, N):
+
+        for i in range(N-1):
+            #Take state derivative function and integrate with 4th order Runge-Kutta for next state
+            next_state = runge_kutta_step(f=self.dynamics.calculate_dynamics, y0=self.states[i, :], t0=1, dt=self.dt, thrust=self.inputs[i, :])[1]
+
+            dynamics_constraint = self.prog.AddConstraint(
+                eq(self.states[i + 1, :], next_state)
+            )
+
+            #dynamics_relaxed_constraint = self.prog.AddConstraint(self.states[i + 1, :] - next_state <= 0)
+
+            dynamics_constraint.evaluator().set_description(f"Dynamics_Constraint_{i}")
+
+        print("Dynamics constraint added")
+
+    def lambda_sequence_constraint(self):
+        threads = []
+
+        for i in range(self.N_waypoints - 1):
+            threads.append(threading.Thread(target=self.subsequent_lambda_constraint, args=(i, i+1), name=f"Thread_{i}_{i+1}"))
+        
+        for thread in threads:
+            thread.start()
+        
+        for thread in threads:
+            thread.join()
+
+        print("All threads complete, lambda sequence constraint added")
+
+    def subsequent_lambda_constraint(self, lte_j, gte_j):
+        lte_key = f'wp_{lte_j}'
+        gte_key = f'wp_{gte_j}'
+
+        lambda_hat1 = self.wp_var_dict[lte_key]['lambda']
+        lambda_hat2 = self.wp_var_dict[gte_key]['lambda']
+
+        for i in range(len(lambda_hat1)):
+            sequence_constraint = self.prog.AddConstraint(
+                lambda_hat1[i] - lambda_hat2[i] <= 0
+            )
+
+
+    def mu_sequence_constraint(self):
+        threads = []
+
+        for i in range(self.N_waypoints - 1):
+            threads.append(threading.Thread(target=self.subsequent_mu_constraint, args=(i, i+1), name=f"Thread_{i}_{i+1}"))
+        
+        for thread in threads:
+            thread.start()
+        
+        for thread in threads:
+            thread.join()
+
+        print("All threads complete, mu sequence constraint added")
+
+    def subsequent_mu_constraint(self, lte_j, gte_j):
+        
+        lte_key = f'wp_{lte_j}'
+        gte_key = f'wp_{gte_j}'
+
+        mu_hat1 = self.wp_var_dict[lte_key]['mu']
+        mu_hat2 = self.wp_var_dict[gte_key]['mu']
+
+        for i in range(len(mu_hat1)):
+
+            sequence_constraint = self.prog.AddConstraint(
+                mu_hat1[i] - mu_hat2[i] <= 0
+            )
 
 
     def velocity_constraint(self, state_vector):
@@ -191,8 +266,9 @@ class CPC:
         filename = "solver_verbose/debug.txt"
         solver_options = SolverOptions()
         solver_options.SetOption(CommonSolverOption.kPrintFileName, filename)
-        solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 2000)
-
+        #solver_options.SetOption(IpoptSolver().solver_id(), "max_iter", 400)
+        #solver_options.SetOption(IpoptSolver().solver_id(), "tol", 1e-3)
+        #solver_options.SetOption(IpoptSolver().solver_id(), "acceptable_tol", 1e-3)
         start_time = time.time()
         result = self.solver.Solve(self.prog, solver_options=solver_options)
 
@@ -206,10 +282,6 @@ class CPC:
 
         self.progress_solution = np.array([result.GetSolution(self.progress_variables[i]) for i in range(self.N_waypoints)])
 
-        print("Success? ", result.is_success())
-        print(result.get_solution_result())
-
-        print("x* = ", self.x_solution)
         print("Solver is ", result.get_solver_id().name())
         print("Ipopt solver status: ", result.get_solver_details().status,
             ", meaning ", result.get_solver_details().ConvertStatusToString())
@@ -217,12 +289,14 @@ class CPC:
         with open(filename) as f:
             print(f.read())
 
-        #infeasible_constraints = result.GetInfeasibleConstraints(self.prog)
-        #for c in infeasible_constraints:
-        #    print(f"infeasible constraint: {c}")
+
         self.plot_positions()
         self.plot_progress()
         self.plot_actuation()
+        infeasible_constraints = result.GetInfeasibleConstraints(self.prog)
+        for c in infeasible_constraints:
+            print(f"infeasible constraint: {c.evaluator().get_description()}")
+
 
     def print_params(self):
         print("=========================================")

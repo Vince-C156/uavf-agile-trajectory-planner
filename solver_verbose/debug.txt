@@ -1,10 +1,37 @@
-Total number of variables............................:    31974
-                     variables with only lower bounds:        1
-                variables with lower and upper bounds:    19985
+Total number of variables............................:    17376
+                     variables with only lower bounds:        0
+                variables with lower and upper bounds:    10790
                      variables with only upper bounds:        0
-Total number of equality constraints.................:    22977
-Total number of inequality constraints...............:     9990
+Total number of equality constraints.................:    12579
+Total number of inequality constraints...............:     3600
         inequality constraints with only lower bounds:        0
    inequality constraints with lower and upper bounds:        0
-        inequality constraints with only upper bounds:     9990
+        inequality constraints with only upper bounds:     3600
 
+WARNING: Problem in step computation; switching to emergency mode.
+WARNING: Problem in step computation; switching to emergency mode.
+Cannot call restoration phase at point that is almost feasible for the restoration NLP (violation 0.000000e+00).
+Abort in line search due to no other fall back.
+Step computation in the restoration phase failed.
+
+Number of Iterations....: 1
+
+                                   (scaled)                 (unscaled)
+Objective...............:   5.7604871599405033e+03    1.3273284927935763e+04
+Dual infeasibility......:   1.0000000000000000e+02    2.3041948639762015e+02
+Constraint violation....:   7.0957988830770637e+02    2.2694233690674510e+07
+Variable bound violation:   0.0000000000000000e+00    0.0000000000000000e+00
+Complementarity.........:   3.7151216000209999e+01    8.5603641098154355e+01
+Overall NLP error.......:   7.0957988830770637e+02    2.2694233690674510e+07
+
+
+Number of objective function evaluations             = 2
+Number of objective gradient evaluations             = 2
+Number of equality constraint evaluations            = 2
+Number of inequality constraint evaluations          = 2
+Number of equality constraint Jacobian evaluations   = 2
+Number of inequality constraint Jacobian evaluations = 2
+Number of Lagrangian Hessian evaluations             = 0
+Total seconds in IPOPT                               = 151.673
+
+EXIT: Restoration Failed!

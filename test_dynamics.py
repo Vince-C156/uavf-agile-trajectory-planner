@@ -1,105 +1,77 @@
-from dynamics import quad_dynamics as QuadrotorDynamics
+from pydrake.all import (AutoDiffXd, DirectCollocation, DiagramBuilder,
+                         FirstOrderTaylorApproximation, PiecewisePolynomial, Solve)
 import numpy as np
+from dynamics import CompQuad_
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
+# Instantiate your CompQuad system (make sure this is defined correctly)
+CompQuad = CompQuad_[None]
 
-def enu_ned():
+plant = CompQuad()
+context = plant.CreateDefaultContext()
 
-    # Create a figure and 3D axis
-    fig = plt.figure()
-    ax = fig.add_subplot(111, projection='3d')
+x0 = np.array([0, 0, -1, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])  # Combined state for hovering.
+xf = np.array([10, 10, -10, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0])  # Combined state for hovering.
 
-    # Create the origin point
-    origin = np.array([0, 0, 0])
+context.SetContinuousState(x0)
+dircol = DirectCollocation(
+    plant,
+    context,
+    num_time_samples=50,
+    minimum_time_step=0.1,
+    maximum_time_step=1,
+    input_port_index=plant.get_input_port().get_index())
 
-    # Define the axis vectors for NED
-    ned_x = np.array([1, 0, 0])  # North
-    ned_y = np.array([0, 1, 0])  # East
-    ned_z = np.array([0, 0, -1])  # Down
+prog = dircol.prog() 
+dircol.AddEqualTimeIntervalsConstraints()
 
-    # Define the axis vectors for ENU
-    enu_x = np.array([0.5, 0, 0])  # East
-    enu_y = np.array([0, 0.5, 0])  # North
-    enu_z = np.array([0, 0, 0.5])  # Up
 
-    # Plot the NED frame
-    ax.quiver(*origin, *ned_x, color='r', label='NED - North')
-    ax.quiver(*origin, *ned_y, color='g', label='NED - East')
-    ax.quiver(*origin, *ned_z, color='b', label='NED - Down')
+prog.AddBoundingBoxConstraint(x0, x0, dircol.initial_state())
+prog.AddBoundingBoxConstraint(xf, xf, dircol.final_state())
 
-    # Plot the ENU frame
-    ax.quiver(*origin, *enu_x, color='m', label='ENU - East')
-    ax.quiver(*origin, *enu_y, color='y', label='ENU - North')
-    ax.quiver(*origin, *enu_z, color='c', label='ENU - Up')
+dircol.AddFinalCost(dircol.time() ** 2)
 
-    # Set axis limits and labels
-    ax.set_xlim([-1, 1])
-    ax.set_ylim([-1, 1])
-    ax.set_zlim([-1, 1])
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
 
-    # Add a legend
-    ax.legend()
+result = Solve(prog)
 
-    # Show the plot
-    plt.show()
+print(result.is_success())
 
-def main():
+x_sol = dircol.ReconstructStateTrajectory(result)
+u_sol = dircol.ReconstructInputTrajectory(result)
 
-    #x0 = np.array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]) #Initial state
-    x0 = np.ones(13)
+fig, ax = plt.subplots(3, 1)
+fig.tight_layout(pad=2.0)
+x_values = x_sol.vector_values(x_sol.get_segment_times())
+ax[0].plot(range(len(x_values[0])), x_values[0, :], ".-")
+ax[0].set_xlabel("t")
+ax[0].set_ylabel("x")
 
-    XS = []
-    XS.append(x0)
-    my_dynamics = QuadrotorDynamics()
+ax[1].plot(range(len(x_values[1])), x_values[1, :], ".-")
+ax[1].set_xlabel("t")
+ax[1].set_ylabel("y")
 
-    inputs = np.array([26, 26, 26, 26])
-    #inputs = np.array([0, 0, 0, 0])
+ax[2].plot(range(len(x_values[2])), x_values[2, :], ".-")
+ax[2].set_xlabel("t")
+ax[2].set_ylabel("z")
 
-    for i in range(100):
-        xdot = my_dynamics.calculate_dynamics(0, x0, inputs)
-        x0 = x0 + xdot
+plt.show()
 
-        XS.append(x0)
-    
-    print(x0)
-    XS = np.array(XS)
-    xs, ys, zs = XS[:, 0], XS[:, 1], XS[:, 2]
-    xdots, ydots, zdots = XS[:, 7], XS[:, 8], XS[:, 9]
+fig, ax = plt.subplots(4, 1)
 
-    fig = plt.figure()
+u_values = u_sol.vector_values(u_sol.get_segment_times())
+ax[0].plot(range(len(u_values[0])), u_values[0, :], ".-")
+ax[0].set_xlabel("t")
+ax[0].set_ylabel("u1")
 
-    plt.plot(range(101), xs, label='x', color='blue')
-    plt.plot(range(101), ys, label='y', color='green')
-    plt.plot(range(101), zs, label='z', color='red')
+ax[1].plot(range(len(u_values[1])), u_values[1, :], ".-")
+ax[1].set_xlabel("t")
+ax[1].set_ylabel("u2")
 
-    plt.xlabel('Time [s]')
-    plt.ylabel('Position [m]')
-    plt.title('Position vs Time')
-    plt.legend()
-    plt.show()
+ax[2].plot(range(len(u_values[2])), u_values[2, :], ".-")
+ax[2].set_xlabel("t")
+ax[2].set_ylabel("u3")
 
-    fig = plt.figure()
-    plt.plot(range(101), xdots, label='xdot', color='blue')
-    plt.plot(range(101), ydots, label='ydot', color='green')
-    plt.plot(range(101), zdots, label='zdot', color='red')
-    plt.legend()
-    plt.show()
+ax[3].plot(range(len(u_values[3])), u_values[3, :], ".-")
+ax[3].set_xlabel("t")
+ax[3].set_ylabel("u4")
 
-    ax = plt.figure().add_subplot(111, projection='3d')
-
-    ax.scatter(xs[0], ys[0], zs[0], label='Start', color='green')
-
-    ax.plot(xs, ys, zs, label='Position')
-    ax.set_xlabel('X')
-    ax.set_ylabel('Y')
-    ax.set_zlabel('Z')
-    plt.show()
-
-    
-
-if __name__ == "__main__":
-    main()
-    #enu_ned()
+plt.show()
