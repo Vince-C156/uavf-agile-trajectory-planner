@@ -12,6 +12,7 @@ from datetime import datetime
 from pydrake.solvers import CommonSolverOption, SolverOptions, SnoptSolver
 from integration_utils import runge_kutta_step
 import threading
+from pydrake.solvers import GurobiSolver
 #CPC Trajectory Optimization
 
 class CPC:
@@ -30,9 +31,9 @@ class CPC:
         self.d_tol = 6.096 #Distance tolerance to waypoint [m]
 
         self.prog = MathematicalProgram()
-        self.solver = IpoptSolver()
+        #self.solver = IpoptSolver()
         #self.solver = SnoptSolver()
-
+        self.solver = GurobiSolver()
         self.x_solution = None
         self.u_solution = None
 

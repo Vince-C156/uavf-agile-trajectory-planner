@@ -5,7 +5,6 @@ import matplotlib.pyplot as plt
 from pydrake.systems.primitives import LogVectorOutput
 from pydrake.systems.analysis import Simulator 
 from pydrake.systems.framework import DiagramBuilder 
-from dynamics import QuadrotorPlant
 from dynamics import quad_dynamics as QuadrotorDynamics
 from pydrake.systems.drawing import plot_system_graphviz
 from pydrake.examples import StabilizingLQRController
@@ -37,15 +36,6 @@ def main():
 
 
     
-    builder = DiagramBuilder()
-
-    #Quadrotor Dynamics
-    quad_dynamics = builder.AddNamedSystem("Quad-Dynamics-Non-Linear", QuadrotorPlant())
-    quad_context = quad_dynamics.CreateDefaultContext()
-    quad_dynamics.get_input_port(0).FixValue(quad_context, [10, 10, 10, 10])
-
-    #Log the output of the quadrotor dynamics
-    logger = LogVectorOutput(quad_dynamics.get_output_port(0), builder)
     #Trajectory Optimization
     thrust_per_motor_competition = 9.07185 #N
     cpc = CPC(dyn_plant=QuadrotorDynamics(), x0=x, u_max=16, waypoints=mission_waypoints)
@@ -53,33 +43,6 @@ def main():
 
     input()
 
-    plant = builder.AddSystem(LinearQuadrotorPlant())
-
-    controller = builder.AddSystem(StabilizingLQRController(plant, [0, 0, 1]))
-    builder.Connect(controller.get_output_port(0), plant.get_input_port(0))
-    builder.Connect(controller.get_output_port(0), quad_dynamics.get_input_port(0))
-    builder.Connect(plant.get_output_port(0), controller.get_input_port(0))
-
-
-    # Build the system
-    diagram = builder.Build()
-    context = diagram.CreateDefaultContext()
-    quad_context.SetContinuousState([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0])
-    plot_system_graphviz(diagram)
-    plt.savefig('quadrotor_system_diagram.png')
-
-    simulator = Simulator(diagram, context)
-    simulator.AdvanceTo(1)
-
-    # Plot the results.
-    log = logger.FindLog(simulator.get_context())
-    print(f'{log.data().transpose()}')
-    #plt.figure()
-    #plt.stem(log.sample_times(), log.data().transpose())
-    #plt.xlabel('n')
-    #plt.ylabel('y[n]')
-
-    #quad_plant.print_params()
 if __name__ == "__main__":
     main()
 

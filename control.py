@@ -38,7 +38,7 @@ class FiniteTimeLQR:
             A, B = self.linearize_about_hover(point)
             self.linear_systems.update({f'{i}' : (A, B)})
 
-        print(self.linear_systems.keys())
+        print(self.linear_systems.values())
 
     def linearize_about_hover(self, position):
         non_positional_states = np.array([1, 0, 0, 0, 0, 0, 0, 0, 0, 0]) #[qw, q1, q2, q3, xdot, ydot, zdot, wx, wy, wz]
